@@ -1,8 +1,12 @@
 const express = require('express');
 const jwt     = require('jsonwebtoken');
-const path    = require('path');
 
 const router = express.Router();
+
+// GET handler so ServiceM8 can verify the endpoint is alive
+router.get('/', (_req, res) => {
+  res.status(200).send('OK');
+});
 
 router.post('/', (req, res) => {
   const { APP_SECRET } = process.env;
