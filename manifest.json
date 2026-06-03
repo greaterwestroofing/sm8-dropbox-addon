@@ -1,0 +1,20 @@
+{
+  "name": "Photos to Dropbox",
+  "version": "1.0",
+  "iconURL": "https://example.com/icon.png",
+  "supportURL": "https://example.com/support",
+  "supportEmail": "support@example.com",
+  "oauth": {
+    "scope": "read_jobs read_job_attachments"
+  },
+  "actions": [
+    {
+      "name": "Send Photos to Dropbox",
+      "type": "online",
+      "entity": "job",
+      "iconURL": "https://example.com/icon.png",
+      "event": "send_photos_dropbox",
+      "location": "modal"
+    }
+  ]
+}
