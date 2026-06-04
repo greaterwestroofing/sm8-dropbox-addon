@@ -5,27 +5,25 @@ const path    = require('path');
 
 const router = express.Router();
 
-// Serve modal for both GET and POST
-function serveModal(jobUUID, accessToken, res) {
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
-    html = html.replace('__JOB_UUID__', jobUUID || '');
-    html = html.replace('__SM8_TOKEN__', accessToken || '');
-    return res.send(html);
-  } catch (err) {
-    console.error('Failed to read modal.html:', err.message);
-    return res.status(500).send('Server error: ' + err.message);
-  }
-}
+router.get('/', (_req, res) => res.status(200).send('OK'));
 
-router.get('/', (req, res) => {
-  // GET - no JWT available, serve modal with empty values (SDK will fill them in)
-  serveModal('', '', res);
-});
-
-router.post('/', (req, res) => {
+router.post('/', express.raw({ type: '*/*' }), (req, res) => {
   const { APP_SECRET } = process.env;
-  const jwtToken = req.body.jwt;
+
+  // JWT may come as raw body or form field
+  let jwtToken = null;
+  if (req.body) {
+    if (typeof req.body === 'string') {
+      jwtToken = req.body.trim();
+    } else if (Buffer.isBuffer(req.body)) {
+      jwtToken = req.body.toString('utf8').trim();
+    } else if (req.body.jwt) {
+      jwtToken = req.body.jwt;
+    }
+  }
+
+  console.log('Raw body type:', typeof req.body);
+  console.log('JWT token (first 50):', jwtToken ? jwtToken.substring(0, 50) : 'NONE');
 
   let jobUUID = '';
   let accessToken = '';
@@ -35,16 +33,26 @@ router.post('/', (req, res) => {
       const payload = jwt.decode(jwtToken);
       console.log('JWT payload:', JSON.stringify(payload));
       if (payload) {
-        jobUUID     = payload.job_uuid || payload.jobUuid || payload.object_uuid || '';
-        accessToken = payload.access_token || payload.accessToken ||
-                      (payload.auth && payload.auth.accessToken) || '';
+        jobUUID      = payload.job_uuid || payload.jobUuid ||
+                       (payload.eventArgs && payload.eventArgs.uuid) || '';
+        accessToken  = payload.access_token || payload.accessToken ||
+                       (payload.auth && payload.auth.accessToken) || '';
       }
     } catch (err) {
-      console.error('JWT error:', err.message);
+      console.error('JWT decode error:', err.message);
     }
   }
 
-  serveModal(jobUUID, accessToken, res);
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
+    html = html.replace('__JOB_UUID__', jobUUID);
+    html = html.replace('__SM8_TOKEN__', accessToken);
+    res.setHeader('Content-Type', 'text/html');
+    return res.send(html);
+  } catch (err) {
+    console.error('Failed to read modal.html:', err.message);
+    return res.status(500).send('<p>Server error: ' + err.message + '</p>');
+  }
 });
 
 module.exports = router;
