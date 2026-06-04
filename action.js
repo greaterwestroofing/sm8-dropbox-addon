@@ -3,26 +3,16 @@ const jwt     = require('jsonwebtoken');
 
 const router = express.Router();
 
-// ServiceM8 loads this URL in the modal iframe
+// ServiceM8 opens this URL in the modal - always serve the UI
 router.get('/', (req, res) => {
-  const { job, token } = req.query;
-
-  // If ServiceM8 passed job/token params, show the modal UI
-  if (job || token) {
-    return res.sendFile('modal.html', { root: __dirname });
-  }
-
-  // Health check for ServiceM8 validation
-  res.status(200).send('OK');
+  res.sendFile('modal.html', { root: __dirname });
 });
 
-// ServiceM8 may also POST a JWT
 router.post('/', (req, res) => {
   const { APP_SECRET } = process.env;
   const jwtToken = req.body.jwt;
 
   if (!jwtToken) {
-    // No JWT — just serve the modal
     return res.sendFile('modal.html', { root: __dirname });
   }
 
