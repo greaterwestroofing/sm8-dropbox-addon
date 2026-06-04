@@ -4,241 +4,70 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Send Photos to Dropbox</title>
+  <script src="https://app.servicem8.com/addon_sdk/servicem8-addon-sdk.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --green:  #0061FF;   /* Dropbox blue */
-      --sm8:    #7dc836;   /* ServiceM8 green */
-      --dark:   #1a1a2e;
-      --mid:    #4a4a6a;
-      --light:  #f0f2f8;
-      --border: #dde0eb;
-      --radius: 10px;
-    }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: #fff;
-      color: var(--dark);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-
-    .card {
-      width: 100%;
-      max-width: 440px;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0,0,0,.08);
-    }
-
-    .card-header {
-      background: linear-gradient(135deg, #0061FF 0%, #0038b0 100%);
-      color: #fff;
-      padding: 20px 24px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .dropbox-icon {
-      width: 36px;
-      height: 36px;
-      flex-shrink: 0;
-    }
-
+    body { font-family: 'DM Sans', sans-serif; background: #fff; color: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { width: 100%; max-width: 440px; border: 1px solid #dde0eb; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    .card-header { background: linear-gradient(135deg, #0061FF 0%, #0038b0 100%); color: #fff; padding: 20px 24px; display: flex; align-items: center; gap: 14px; }
     .card-header h1 { font-size: 1.1rem; font-weight: 600; }
     .card-header p  { font-size: .82rem; opacity: .85; margin-top: 2px; }
-
     .card-body { padding: 24px; }
-
-    .job-badge {
-      background: var(--light);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: .85rem;
-      color: var(--mid);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-
-    .job-badge strong { color: var(--dark); }
-
-    /* States */
-    #state-idle, #state-loading, #state-success, #state-empty, #state-error {
-      display: none;
-    }
-    #state-idle    { display: block; }
-
-    /* Idle */
-    .btn {
-      width: 100%;
-      padding: 13px;
-      border: none;
-      border-radius: var(--radius);
-      font-family: inherit;
-      font-size: .95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity .15s, transform .1s;
-    }
-    .btn:hover  { opacity: .88; transform: translateY(-1px); }
-    .btn:active { transform: translateY(0); }
-
-    .btn-primary {
-      background: #0061FF;
-      color: #fff;
-    }
-
-    /* Loading */
-    .loader-wrap {
-      text-align: center;
-      padding: 12px 0 4px;
-    }
-
-    .progress-bar-track {
-      background: var(--light);
-      border-radius: 99px;
-      height: 6px;
-      overflow: hidden;
-      margin: 16px 0 10px;
-    }
-
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #0061FF, #00b4d8);
-      border-radius: 99px;
-      width: 0%;
-      transition: width .4s ease;
-      animation: indeterminate 1.4s infinite ease-in-out;
-    }
-
-    @keyframes indeterminate {
-      0%   { width: 0%;   margin-left: 0; }
-      50%  { width: 60%;  margin-left: 20%; }
-      100% { width: 0%;   margin-left: 100%; }
-    }
-
-    .loader-wrap p { font-size: .85rem; color: var(--mid); }
-
-    /* Success */
-    .success-icon {
-      width: 52px; height: 52px;
-      background: #e8f5e9;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 14px;
-      font-size: 1.6rem;
-    }
-
+    .job-badge { background: #f0f2f8; border: 1px solid #dde0eb; border-radius: 8px; padding: 10px 14px; font-size: .85rem; color: #4a4a6a; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .job-badge strong { color: #1a1a2e; }
+    #state-idle, #state-loading, #state-success, #state-empty, #state-error { display: none; }
+    #state-idle { display: block; }
+    .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-family: inherit; font-size: .95rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .88; }
+    .btn-primary { background: #0061FF; color: #fff; }
+    .loader-wrap { text-align: center; padding: 12px 0 4px; }
+    .progress-bar-track { background: #f0f2f8; border-radius: 99px; height: 6px; overflow: hidden; margin: 16px 0 10px; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0061FF, #00b4d8); border-radius: 99px; animation: indeterminate 1.4s infinite ease-in-out; }
+    @keyframes indeterminate { 0% { width: 0%; margin-left: 0; } 50% { width: 60%; margin-left: 20%; } 100% { width: 0%; margin-left: 100%; } }
+    .loader-wrap p { font-size: .85rem; color: #4a4a6a; }
     #state-success { text-align: center; }
+    .success-icon { width: 52px; height: 52px; background: #e8f5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 1.6rem; }
     #state-success h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 4px; }
-    #state-success p  { font-size: .84rem; color: var(--mid); margin-bottom: 18px; }
-
-    .link-box {
-      background: var(--light);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 11px 14px;
-      font-size: .8rem;
-      color: #0061FF;
-      word-break: break-all;
-      text-align: left;
-      margin-bottom: 14px;
-    }
-
+    #state-success p  { font-size: .84rem; color: #4a4a6a; margin-bottom: 18px; }
+    .link-box { background: #f0f2f8; border: 1px solid #dde0eb; border-radius: 8px; padding: 11px 14px; font-size: .8rem; color: #0061FF; word-break: break-all; text-align: left; margin-bottom: 14px; }
     .btn-group { display: flex; gap: 10px; }
-    .btn-outline {
-      flex: 1;
-      background: #fff;
-      border: 1.5px solid var(--border);
-      color: var(--dark);
-    }
-    .btn-copy {
-      flex: 1;
-      background: #0061FF;
-      color: #fff;
-      border: none;
-    }
-
-    /* Empty */
+    .btn-outline { flex: 1; background: #fff; border: 1.5px solid #dde0eb; color: #1a1a2e; }
+    .btn-copy { flex: 1; background: #0061FF; color: #fff; border: none; }
     #state-empty { text-align: center; }
     #state-empty .icon { font-size: 2rem; margin-bottom: 10px; }
     #state-empty h2 { font-size: 1rem; margin-bottom: 4px; }
-    #state-empty p  { font-size: .84rem; color: var(--mid); }
-
-    /* Error */
-    #state-error {
-      background: #fff5f5;
-      border: 1px solid #ffd0d0;
-      border-radius: var(--radius);
-      padding: 14px;
-      font-size: .85rem;
-      color: #c0392b;
-    }
-
+    #state-empty p  { font-size: .84rem; color: #4a4a6a; }
+    #state-error { background: #fff5f5; border: 1px solid #ffd0d0; border-radius: 10px; padding: 14px; font-size: .85rem; color: #c0392b; }
     #state-error strong { display: block; margin-bottom: 4px; }
-
-    .powered-by {
-      margin-top: 18px;
-      text-align: center;
-      font-size: .75rem;
-      color: #aaa;
-    }
-    .powered-by span { color: var(--sm8); font-weight: 600; }
+    .powered-by { margin-top: 18px; text-align: center; font-size: .75rem; color: #aaa; }
+    .powered-by span { color: #7dc836; font-weight: 600; }
   </style>
 </head>
 <body>
-
 <div class="card">
   <div class="card-header">
-    <!-- Dropbox logo inline SVG -->
-    <svg class="dropbox-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="40" height="40" rx="8" fill="white" fill-opacity="0.15"/>
-      <path d="M20 8.5L12 13.5L20 18.5L12 23.5L4 18.5L12 13.5L4 8.5L12 3.5L20 8.5Z" fill="white"/>
-      <path d="M20 8.5L28 13.5L20 18.5L28 23.5L36 18.5L28 13.5L36 8.5L28 3.5L20 8.5Z" fill="white"/>
-      <path d="M12 25L20 20L28 25L20 30L12 25Z" fill="white"/>
-    </svg>
+    <svg width="36" height="36" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="8" fill="white" fill-opacity="0.15"/><path d="M20 8.5L12 13.5L20 18.5L12 23.5L4 18.5L12 13.5L4 8.5L12 3.5L20 8.5Z" fill="white"/><path d="M20 8.5L28 13.5L20 18.5L28 23.5L36 18.5L28 13.5L36 8.5L28 3.5L20 8.5Z" fill="white"/><path d="M12 25L20 20L28 25L20 30L12 25Z" fill="white"/></svg>
     <div>
       <h1>Send Photos to Dropbox</h1>
       <p>Upload all job photos &amp; get a shareable link</p>
     </div>
   </div>
-
   <div class="card-body">
-    <div class="job-badge">
-      📋 &nbsp;<span>Job: <strong id="job-label">Loading…</strong></span>
-    </div>
+    <div class="job-badge">📋 &nbsp;<span>Job: <strong id="job-label">Loading…</strong></span></div>
 
-    <!-- IDLE -->
     <div id="state-idle">
-      <button class="btn btn-primary" onclick="startSync()">
-        ☁️ &nbsp; Upload Photos to Dropbox
-      </button>
+      <button class="btn btn-primary" onclick="startSync()">☁️ &nbsp; Upload Photos to Dropbox</button>
     </div>
 
-    <!-- LOADING -->
     <div id="state-loading">
       <div class="loader-wrap">
         <div>📤 Uploading photos…</div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="progress-fill"></div>
-        </div>
+        <div class="progress-bar-track"><div class="progress-bar-fill"></div></div>
         <p id="loading-msg">Fetching photos from job diary…</p>
       </div>
     </div>
 
-    <!-- SUCCESS -->
     <div id="state-success">
       <div class="success-icon">✅</div>
       <h2 id="success-title">Photos uploaded!</h2>
@@ -250,14 +79,12 @@
       </div>
     </div>
 
-    <!-- EMPTY -->
     <div id="state-empty">
       <div class="icon">🖼️</div>
       <h2>No photos found</h2>
       <p>This job doesn't have any photos in the diary yet.</p>
     </div>
 
-    <!-- ERROR -->
     <div id="state-error">
       <strong>⚠️ Something went wrong</strong>
       <span id="error-msg"></span>
@@ -268,41 +95,44 @@
 </div>
 
 <script>
-  // Pull params from URL
-  const params   = new URLSearchParams(location.search);
-  const jobUUID  = params.get('job');
-  const sm8Token = params.get('token');
-
-  // Display job UUID (will be replaced with job number once fetched)
-  document.getElementById('job-label').textContent = jobUUID ? jobUUID.slice(0, 8) + '…' : '?';
-
+  let jobUUID = null;
+  let sm8Token = null;
   let sharedLink = null;
+
+  // Use ServiceM8 SDK to get job context
+  SMAddon.init().then(function() {
+    return SMAddon.getContext();
+  }).then(function(context) {
+    jobUUID  = context.jobUuid || context.job_uuid;
+    sm8Token = context.accessToken || context.access_token;
+    document.getElementById('job-label').textContent = jobUUID ? jobUUID.slice(0, 8) + '…' : '?';
+  }).catch(function(err) {
+    console.error('SDK error:', err);
+    // Fall back to URL params
+    const params = new URLSearchParams(location.search);
+    jobUUID  = params.get('job');
+    sm8Token = params.get('token');
+    document.getElementById('job-label').textContent = jobUUID ? jobUUID.slice(0, 8) + '…' : '?';
+  });
 
   function setState(id) {
     ['idle','loading','success','empty','error'].forEach(s => {
       document.getElementById('state-' + s).style.display = 'none';
     });
-    document.getElementById('state-' + id).style.display = id === 'idle' ? 'block' : (id === 'loading' ? 'block' : 'block');
-    // fix: all states use block
     document.getElementById('state-' + id).style.display = 'block';
-  }
-
-  function setLoadingMsg(msg) {
-    document.getElementById('loading-msg').textContent = msg;
   }
 
   async function startSync() {
     if (!jobUUID || !sm8Token) {
-      showError('Missing job or session data. Please close and reopen the action.');
+      document.getElementById('error-msg').textContent = 'Missing job or session data. Please close and reopen the action.';
+      setState('error');
       return;
     }
 
     setState('loading');
-    setLoadingMsg('Connecting to ServiceM8…');
+    document.getElementById('loading-msg').textContent = 'Fetching photos from job diary…';
 
     try {
-      setLoadingMsg('Fetching photos from job diary…');
-
       const res = await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,29 +141,15 @@
 
       const data = await res.json();
 
-      if (!data.ok) {
-        showError(data.error || 'Unknown error');
-        return;
-      }
-
-      // Update job label
-      if (data.jobName) {
-        document.getElementById('job-label').textContent = data.jobName;
-      }
-
-      if (data.count === 0 || !data.link) {
-        setState('empty');
-        return;
-      }
+      if (!data.ok) { showError(data.error || 'Unknown error'); return; }
+      if (data.jobName) document.getElementById('job-label').textContent = data.jobName;
+      if (data.count === 0 || !data.link) { setState('empty'); return; }
 
       sharedLink = data.link;
       document.getElementById('success-title').textContent = `${data.count} photo${data.count !== 1 ? 's' : ''} uploaded!`;
-      document.getElementById('success-subtitle').textContent =
-        `Folder: ${data.jobName || jobUUID.slice(0,8)}`;
+      document.getElementById('success-subtitle').textContent = `Folder: ${data.jobName || jobUUID.slice(0,8)}`;
       document.getElementById('link-text').textContent = data.link;
-
       setState('success');
-
     } catch (err) {
       showError(err.message || 'Network error');
     }
