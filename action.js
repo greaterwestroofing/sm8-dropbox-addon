@@ -10,20 +10,12 @@ router.get('/', (_req, res) => res.status(200).send('OK'));
 router.post('/', express.raw({ type: '*/*' }), (req, res) => {
   const { APP_SECRET } = process.env;
 
-  // JWT may come as raw body or form field
   let jwtToken = null;
   if (req.body) {
-    if (typeof req.body === 'string') {
-      jwtToken = req.body.trim();
-    } else if (Buffer.isBuffer(req.body)) {
-      jwtToken = req.body.toString('utf8').trim();
-    } else if (req.body.jwt) {
-      jwtToken = req.body.jwt;
-    }
+    if (typeof req.body === 'string') jwtToken = req.body.trim();
+    else if (Buffer.isBuffer(req.body)) jwtToken = req.body.toString('utf8').trim();
+    else if (req.body.jwt) jwtToken = req.body.jwt;
   }
-
-  console.log('Raw body type:', typeof req.body);
-  console.log('JWT token (first 50):', jwtToken ? jwtToken.substring(0, 50) : 'NONE');
 
   let jobUUID = '';
   let accessToken = '';
@@ -33,15 +25,20 @@ router.post('/', express.raw({ type: '*/*' }), (req, res) => {
       const payload = jwt.decode(jwtToken);
       console.log('JWT payload:', JSON.stringify(payload));
       if (payload) {
-        jobUUID      = payload.job_uuid || payload.jobUuid ||
-                       (payload.eventArgs && payload.eventArgs.uuid) || '';
-        accessToken  = payload.access_token || payload.accessToken ||
-                       (payload.auth && payload.auth.accessToken) || '';
+        // eventArgs.jobUUID is the correct field per the logs
+        jobUUID     = (payload.eventArgs && payload.eventArgs.jobUUID) ||
+                      (payload.eventArgs && payload.eventArgs.uuid) ||
+                      payload.job_uuid || '';
+        accessToken = (payload.auth && payload.auth.accessToken) ||
+                      payload.access_token || '';
       }
     } catch (err) {
       console.error('JWT decode error:', err.message);
     }
   }
+
+  console.log('jobUUID:', jobUUID);
+  console.log('accessToken:', accessToken ? 'present' : 'missing');
 
   try {
     let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
