@@ -24,7 +24,6 @@ app.post('/action', express.raw({ type: '*/*' }), async (req, res) => {
   if (jwtToken) {
     try {
       const payload = jwt.decode(jwtToken);
-      console.log('JWT payload:', JSON.stringify(payload));
       jobUUID = (payload && payload.eventArgs && payload.eventArgs.jobUUID) || '';
     } catch (err) {
       console.error('JWT decode error:', err.message);
@@ -40,28 +39,22 @@ app.post('/action', express.raw({ type: '*/*' }), async (req, res) => {
 
   console.log('jobUUID:', jobUUID, '| accessToken:', accessToken ? 'present' : 'MISSING');
 
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
-    html = html.replace('__JOB_UUID__', jobUUID);
-    html = html.replace('__SM8_TOKEN__', accessToken);
-    res.removeHeader('X-Frame-Options');
-    res.setHeader('Content-Type', 'application/json');
-    return res.json({ output: html });
-  } catch (err) {
-    return res.status(500).send('<p>Error: ' + err.message + '</p>');
-  }
+  // Send minimal test HTML to confirm the output key works
+  const testHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;padding:20px"><h2>It works!</h2><p>Job: ' + jobUUID + '</p><p>Token: ' + (accessToken ? 'present' : 'missing') + '</p></body></html>';
+
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Content-Type', 'application/json');
+  return res.json({ output: testHtml });
 });
 
 app.get('/action', (_req, res) => res.status(200).send('OK'));
 
-// Now add parsers for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/sync',         syncRouter);
 app.use('/dropbox/callback', callbackRouter);
 
-// SM8 OAuth connect flow
 app.get('/connect', async (req, res) => {
   const { code } = req.query;
   const { SM8_APP_ID, APP_SECRET, BASE_URL } = process.env;
@@ -98,19 +91,16 @@ app.get('/connect', async (req, res) => {
     });
 
     console.log('OAuth response:', JSON.stringify(data));
-
     if (data.refresh_token) {
       sm8auth.storeRefreshToken(data.refresh_token);
-      console.log('New refresh token stored in memory');
     }
 
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connected</title>
     <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
     .card{background:white;border-radius:12px;padding:40px;max-width:400px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)}</style>
-    </head><body><div class="card"><div style="font-size:3rem;margin-bottom:16px">✅</div>
+    </head><body><div class="card"><div style="font-size:3rem;margin-bottom:16px">&#9989;</div>
     <h1 style="color:#1a1a2e;font-size:1.4rem;margin-bottom:8px">Connected!</h1>
     <p style="color:#666;font-size:.9rem">Open any job and click <strong>Send Photos to Dropbox</strong>.</p>
-    <p style="color:#aaa;font-size:.75rem;margin-top:12px">You can close this tab.</p>
     </div></body></html>`);
   } catch (err) {
     res.status(500).send('Error: ' + err.message);
@@ -128,4 +118,3 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
-// This file is being patched - see actual replacement below
