@@ -78,12 +78,11 @@ router.post('/', express.raw({ type: '*/*' }), async (req, res) => {
     let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
     html = html.replace('__JOB_UUID__', jobUUID);
     html = html.replace('__SM8_TOKEN__', accessToken);
-
-    // ServiceM8 expects JSON with an "html" key
-    res.setHeader('Content-Type', 'application/json');
-    return res.json({ html });
+    res.setHeader('Content-Type', 'text/html');
+    res.removeHeader('X-Frame-Options');
+    return res.send(html);
   } catch (err) {
-    return res.status(500).json({ html: '<p>Server error: ' + err.message + '</p>' });
+    return res.status(500).send('<p>Server error: ' + err.message + '</p>');
   }
 });
 
