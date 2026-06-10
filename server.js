@@ -1,21 +1,19 @@
-const express = require('express');
+const express  = require('express');
+const jwt      = require('jsonwebtoken');
+const fs       = require('fs');
+const path     = require('path');
+const https    = require('https');
+const sm8auth  = require('./sm8auth');
 require('dotenv').config();
 
 const syncRouter     = require('./sync');
 const callbackRouter = require('./dropbox-callback');
 
 const app = express();
-
-// Static files
 app.use(express.static(__dirname));
 
-// /action gets its own raw body parser - must be registered BEFORE any body parsers
-app.post('/action', require('express').raw({ type: '*/*' }), async (req, res) => {
-  const jwt     = require('jsonwebtoken');
-  const https   = require('https');
-  const fs      = require('fs');
-  const path    = require('path');
-
+// /action — raw body MUST be parsed before any JSON middleware
+app.post('/action', express.raw({ type: '*/*' }), async (req, res) => {
   let jwtToken = null;
   if (req.body) {
     if (Buffer.isBuffer(req.body)) jwtToken = req.body.toString('utf8').trim();
@@ -33,36 +31,9 @@ app.post('/action', require('express').raw({ type: '*/*' }), async (req, res) =>
     }
   }
 
-  // Get SM8 access token via refresh
   let accessToken = '';
   try {
-    const { SM8_APP_ID, APP_SECRET, SM8_REFRESH_TOKEN } = process.env;
-    const body = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: SM8_REFRESH_TOKEN,
-      client_id: SM8_APP_ID,
-      client_secret: APP_SECRET,
-    }).toString();
-
-    const data = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'go.servicem8.com',
-        path: '/oauth/access_token',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
-      };
-      const r = https.request(options, (res2) => {
-        let d = '';
-        res2.on('data', c => d += c);
-        res2.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
-      });
-      r.on('error', reject);
-      r.write(body);
-      r.end();
-    });
-
-    if (data.access_token) accessToken = data.access_token;
-    else console.error('Token refresh failed:', JSON.stringify(data));
+    accessToken = await sm8auth.getAccessToken();
   } catch (err) {
     console.error('Token error:', err.message);
   }
@@ -83,15 +54,15 @@ app.post('/action', require('express').raw({ type: '*/*' }), async (req, res) =>
 
 app.get('/action', (_req, res) => res.status(200).send('OK'));
 
-// Now add JSON/urlencoded parsers for other routes
+// Now add parsers for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/sync',         syncRouter);
 app.use('/dropbox/callback', callbackRouter);
 
+// SM8 OAuth connect flow
 app.get('/connect', async (req, res) => {
-  const https = require('https');
   const { code } = req.query;
   const { SM8_APP_ID, APP_SECRET, BASE_URL } = process.env;
 
@@ -127,12 +98,19 @@ app.get('/connect', async (req, res) => {
     });
 
     console.log('OAuth response:', JSON.stringify(data));
+
+    if (data.refresh_token) {
+      sm8auth.storeRefreshToken(data.refresh_token);
+      console.log('New refresh token stored in memory');
+    }
+
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connected</title>
     <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
     .card{background:white;border-radius:12px;padding:40px;max-width:400px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)}</style>
     </head><body><div class="card"><div style="font-size:3rem;margin-bottom:16px">✅</div>
     <h1 style="color:#1a1a2e;font-size:1.4rem;margin-bottom:8px">Connected!</h1>
     <p style="color:#666;font-size:.9rem">Open any job and click <strong>Send Photos to Dropbox</strong>.</p>
+    <p style="color:#aaa;font-size:.75rem;margin-top:12px">You can close this tab.</p>
     </div></body></html>`);
   } catch (err) {
     res.status(500).send('Error: ' + err.message);
