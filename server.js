@@ -1,24 +1,97 @@
 const express = require('express');
-const path    = require('path');
 require('dotenv').config();
 
-const actionRouter   = require('./action');
 const syncRouter     = require('./sync');
 const callbackRouter = require('./dropbox-callback');
 
 const app = express();
 
-// Don't pre-parse body for /action — it handles its own body parsing
-app.use('/action', actionRouter);
+// Static files
+app.use(express.static(__dirname));
 
+// /action gets its own raw body parser - must be registered BEFORE any body parsers
+app.post('/action', require('express').raw({ type: '*/*' }), async (req, res) => {
+  const jwt     = require('jsonwebtoken');
+  const https   = require('https');
+  const fs      = require('fs');
+  const path    = require('path');
+
+  let jwtToken = null;
+  if (req.body) {
+    if (Buffer.isBuffer(req.body)) jwtToken = req.body.toString('utf8').trim();
+    else if (typeof req.body === 'string') jwtToken = req.body.trim();
+  }
+
+  let jobUUID = '';
+  if (jwtToken) {
+    try {
+      const payload = jwt.decode(jwtToken);
+      console.log('JWT payload:', JSON.stringify(payload));
+      jobUUID = (payload && payload.eventArgs && payload.eventArgs.jobUUID) || '';
+    } catch (err) {
+      console.error('JWT decode error:', err.message);
+    }
+  }
+
+  // Get SM8 access token via refresh
+  let accessToken = '';
+  try {
+    const { SM8_APP_ID, APP_SECRET, SM8_REFRESH_TOKEN } = process.env;
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: SM8_REFRESH_TOKEN,
+      client_id: SM8_APP_ID,
+      client_secret: APP_SECRET,
+    }).toString();
+
+    const data = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'go.servicem8.com',
+        path: '/oauth/access_token',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+      };
+      const r = https.request(options, (res2) => {
+        let d = '';
+        res2.on('data', c => d += c);
+        res2.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
+      });
+      r.on('error', reject);
+      r.write(body);
+      r.end();
+    });
+
+    if (data.access_token) accessToken = data.access_token;
+    else console.error('Token refresh failed:', JSON.stringify(data));
+  } catch (err) {
+    console.error('Token error:', err.message);
+  }
+
+  console.log('jobUUID:', jobUUID, '| accessToken:', accessToken ? 'present' : 'MISSING');
+
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
+    html = html.replace('__JOB_UUID__', jobUUID);
+    html = html.replace('__SM8_TOKEN__', accessToken);
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Type', 'text/html');
+    return res.send(html);
+  } catch (err) {
+    return res.status(500).send('<p>Error: ' + err.message + '</p>');
+  }
+});
+
+app.get('/action', (_req, res) => res.status(200).send('OK'));
+
+// Now add JSON/urlencoded parsers for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
 
 app.use('/api/sync',         syncRouter);
 app.use('/dropbox/callback', callbackRouter);
 
 app.get('/connect', async (req, res) => {
+  const https = require('https');
   const { code } = req.query;
   const { SM8_APP_ID, APP_SECRET, BASE_URL } = process.env;
 
@@ -27,7 +100,6 @@ app.get('/connect', async (req, res) => {
     return res.redirect(url);
   }
 
-  const https = require('https');
   try {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -59,12 +131,11 @@ app.get('/connect', async (req, res) => {
     <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
     .card{background:white;border-radius:12px;padding:40px;max-width:400px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)}</style>
     </head><body><div class="card"><div style="font-size:3rem;margin-bottom:16px">✅</div>
-    <h1 style="color:#1a1a2e;font-size:1.4rem;margin-bottom:8px">Dropbox Downloader Connected!</h1>
-    <p style="color:#666;font-size:.9rem">Open any job and click <strong>Send Photos to Dropbox</strong> in the More menu.</p>
-    <p style="margin-top:16px;color:#aaa;font-size:.8rem">You can close this tab.</p>
+    <h1 style="color:#1a1a2e;font-size:1.4rem;margin-bottom:8px">Connected!</h1>
+    <p style="color:#666;font-size:.9rem">Open any job and click <strong>Send Photos to Dropbox</strong>.</p>
     </div></body></html>`);
   } catch (err) {
-    res.status(500).send('Connection failed: ' + err.message);
+    res.status(500).send('Error: ' + err.message);
   }
 });
 
