@@ -17,9 +17,8 @@ app.post('/action', express.raw({ type: '*/*' }), async (req, res) => {
     else if (typeof req.body === 'string') jwtToken = req.body.trim();
   }
 
-  let jobUUID = '';
-  if (jwtToken) {
-    try {
+res.setHeader('Content-Type', 'application/json');
+  return res.json({ html: html });
       const payload = jwt.decode(jwtToken);
       jobUUID = (payload && payload.eventArgs && payload.eventArgs.jobUUID) || '';
     } catch (err) {}
