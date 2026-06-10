@@ -45,8 +45,8 @@ app.post('/action', express.raw({ type: '*/*' }), async (req, res) => {
     html = html.replace('__JOB_UUID__', jobUUID);
     html = html.replace('__SM8_TOKEN__', accessToken);
     res.removeHeader('X-Frame-Options');
-    res.setHeader('Content-Type', 'text/html');
-    return res.send(html);
+    res.setHeader('Content-Type', 'application/json');
+    return res.json({ output: html });
   } catch (err) {
     return res.status(500).send('<p>Error: ' + err.message + '</p>');
   }
@@ -128,3 +128,4 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+// This file is being patched - see actual replacement below
