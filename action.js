@@ -11,17 +11,14 @@ let sm8TokenExpiry = 0;
 
 async function getSM8AccessToken() {
   if (sm8AccessToken && Date.now() < sm8TokenExpiry - 60000) return sm8AccessToken;
-
   const { SM8_APP_ID, APP_SECRET, SM8_REFRESH_TOKEN } = process.env;
   if (!SM8_REFRESH_TOKEN) throw new Error('SM8_REFRESH_TOKEN not set');
-
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: SM8_REFRESH_TOKEN,
     client_id: SM8_APP_ID,
     client_secret: APP_SECRET,
   }).toString();
-
   const data = await new Promise((resolve, reject) => {
     const options = {
       hostname: 'go.servicem8.com',
@@ -38,8 +35,7 @@ async function getSM8AccessToken() {
     req.write(body);
     req.end();
   });
-
-  if (!data.access_token) throw new Error('Failed to refresh token: ' + JSON.stringify(data));
+  if (!data.access_token) throw new Error('Failed to refresh: ' + JSON.stringify(data));
   sm8AccessToken = data.access_token;
   sm8TokenExpiry = Date.now() + (data.expires_in || 3600) * 1000;
   return sm8AccessToken;
@@ -50,8 +46,8 @@ router.get('/', (_req, res) => res.status(200).send('OK'));
 router.post('/', express.raw({ type: '*/*' }), async (req, res) => {
   let jwtToken = null;
   if (req.body) {
-    if (typeof req.body === 'string') jwtToken = req.body.trim();
-    else if (Buffer.isBuffer(req.body)) jwtToken = req.body.toString('utf8').trim();
+    if (Buffer.isBuffer(req.body)) jwtToken = req.body.toString('utf8').trim();
+    else if (typeof req.body === 'string') jwtToken = req.body.trim();
     else if (req.body.jwt) jwtToken = req.body.jwt;
   }
 
@@ -78,11 +74,17 @@ router.post('/', express.raw({ type: '*/*' }), async (req, res) => {
     let html = fs.readFileSync(path.join(__dirname, 'modal.html'), 'utf8');
     html = html.replace('__JOB_UUID__', jobUUID);
     html = html.replace('__SM8_TOKEN__', accessToken);
-    res.setHeader('Content-Type', 'text/html');
+
+    // Try returning as a Lambda-style response
+    res.setHeader('Content-Type', 'application/json');
     res.removeHeader('X-Frame-Options');
-    return res.send(html);
+    return res.status(200).json({
+      statusCode: 200,
+      headers: { 'Content-Type': 'text/html' },
+      body: html
+    });
   } catch (err) {
-    return res.status(500).send('<p>Server error: ' + err.message + '</p>');
+    return res.status(500).send('Server error: ' + err.message);
   }
 });
 
